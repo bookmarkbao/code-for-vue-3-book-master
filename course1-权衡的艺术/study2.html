@@ -3,7 +3,7 @@
  * @Author: xiangjun02
  * @Date: 2022-03-08 11:42:03
  * @LastEditors: xiangjun02
- * @LastEditTime: 2022-03-08 12:19:39
+ * @LastEditTime: 2022-03-08 12:21:50
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -64,7 +64,7 @@
   function mountComponent(vnode, container){
       // 调用组件，获取组件要渲染的内容（虚拟DOM）
       const subtree = vnode.tag()
-      // 递归地调用renderer函数
+      // 递归地调用renderer函数渲染subtree
       renderer(subtree, container)
   }
 
