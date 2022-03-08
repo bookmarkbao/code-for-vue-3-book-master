@@ -28,6 +28,24 @@
         },
         children: 'click me'
     }
+    // 新构建虚拟dom测试
+    // const vnode = {
+    //     tag: 'div',
+    //     props:  {
+    //         onClick: ()=>{
+    //             alert('渲染器demo')
+    //         }
+    //     },
+    //     children: [{
+    //         tag: 'div',
+    //         props: {
+    //             onClick: ()=>{
+    //                 alert('我是大向')
+    //             }
+    //         },
+    //         children: '大向',
+    //     }]
+    // }
 
     // 编写渲染器：把虚拟DOM渲染为真实DOM
     function renderer(vnode, container){
