@@ -3,7 +3,7 @@
  * @Author: xiangjun02
  * @Date: 2022-03-08 11:42:03
  * @LastEditors: xiangjun02
- * @LastEditTime: 2022-03-08 12:27:08
+ * @LastEditTime: 2022-03-08 12:26:58
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -16,16 +16,18 @@
   <body></body>
 </html>
 <script>
-  const MyComponent = function () {
-    return {
-      tag: "div",
-      props: {
-        onClick: () => {
-          alert("渲染器组件demo");
+  const MyComponent = {
+    render() {
+      return {
+        tag: "div",
+        props: {
+          onClick: () => {
+            alert("渲染器组件demo");
+          },
         },
-      },
-      children: "组件函数：click me",
-    };
+        children: "组件对象：click me",
+      };
+    },
   };
   // 定义虚拟DOM
   const vnode = {
@@ -61,20 +63,30 @@
     container.appendChild(el);
   }
 
-  function mountComponent(vnode, container){
-      // 调用组件，获取组件要渲染的内容（虚拟DOM）
-      const subtree = vnode.tag()
-      // 递归地调用renderer函数渲染subtree
-      renderer(subtree, container)
+  function mountComponent(vnode, container) {
+    // 调用组件，获取组件要渲染的内容（虚拟DOM）
+    const subtree = vnode.tag();
+    // 递归地调用renderer函数渲染subtree
+    renderer(subtree, container);
+  }
+
+  function mountComponentJson(vnode, container) {
+    // 调用组件，获取组件要渲染的内容（虚拟DOM）
+    const subtree = vnode.tag.render()
+
+    // 递归调用renderer函数渲染subtree
+    renderer(subtree, container)
   }
 
   // 编写渲染器：把虚拟DOM渲染为真实DOM
   function renderer(vnode, container) {
-      if(typeof vnode.tag === 'string') {
-          mountElement(vnode, container)
-      } else if(typeof vnode.tag === 'function') {
-          mountComponent(vnode, container)
-      }
+    if (typeof vnode.tag === "string") {
+      mountElement(vnode, container);
+    } else if (typeof vnode.tag === "function") {
+      mountComponent(vnode, container);
+    } else if(typeof vnode.tag === "object") {
+      mountComponentJson(vnode, container)
+    }
   }
   // 测试，挂载到document.body下
   renderer(vnode, document.body);
