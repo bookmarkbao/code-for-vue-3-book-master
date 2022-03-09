@@ -1,0 +1,112 @@
+<!--
+ * @Descripttion: 响应式系统之桶改造WeakMap
+ * @Author: xiangjun02
+ * @Date: 2022-03-09 19:21:17
+ * @LastEditors: xiangjun02
+ * @LastEditTime: 2022-03-09 20:33:23
+-->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>响应式系统-TODO</title>
+  </head>
+  <body>
+    <div id="id1"></div>
+    <div id="id2"></div>
+    <script type="text/javascript">
+      // WeakMap说明：
+      // 1、存储原始数据结构的佼佼者
+      // 2、key必须是对象（Object或 Symbol)
+      // 3、4方法：delete, get, has, set
+      // 4、一个属性：constructor用于创建实例
+      // 注意：WeakMap不能包含无引用的对象，否则会被自动清除出集合（垃圾回收机制）
+      // 场景1：
+      // （1）想要给网页的dom元素上添加数据时可用 WeakMap：
+      // 用 WeakMap 好处是当该 DOM 元素被清除，对应的 WeakMap记录就会自动被移除
+      // 场景2:
+      // （2）进一步说，注册监听事件的listener对象很适合用WeakMap来实现
+      // https://www.cnblogs.com/zwjun/p/14421405.html
+
+      // 存储副作用函数的桶
+      const bucket = new WeakMap();
+      // 存储原始数据
+      const data = {
+        text: "hello world",
+      };
+
+      // 对原始数据的代理
+      const obj = new Proxy(data, {
+        // 拦截读取操作
+        get(target, key) {
+          // 没有activeEffect，直接return
+          if (!activeEffect) return;
+
+          // 根据target 从桶中取得depsMap（对象）, 它也是一个map类型：key --> effects
+          let depsMap = bucket.get(target);
+
+          // 如果不存在depsMap,那么新建一个Map并与target关联
+          if (!depsMap) {
+            bucket.set(target, (depsMap = new Map()));
+
+            // 等价于
+            // depsMap = new Map()
+            // bucket.set(target, depsMap)
+          }
+
+          // 再根据key从depsMap中读取deps（属性值），它是一个set类型
+          // 里面存储着所有与当前key相关联的副作用函数：effects
+          let deps = depsMap.get(key);
+
+          // 如果deps不存在，同样新建一个Set并与key关联
+          if (!deps) {
+            depsMap.set(key, (deps = new Set()));
+          }
+
+          // 最后将当前激活的副作用函数，添加到桶里
+          deps.add(activeEffect);
+
+          // 返回属性值
+          return target[key];
+        },
+        set(target, key, newVal) {
+          // 设置属性值
+          target[key] = newVal;
+
+          // 根据target从🪣桶中取得depsMap,他是key ---> effects
+          const depsMap = bucket.get(target);
+
+          if (!depsMap) return;
+
+          // 获取key依赖集合
+          const effects = depsMap.get(key);
+          // 把依赖集合判断并执行
+          effects && effects.forEach((fn) => fn());
+          return true;
+        },
+      });
+
+      // 用一个全局变量存储被注册的副作用函数
+      let activeEffect;
+      // 副作用函数用户注册函数
+      function effect(fn) {
+        activeEffect = fn;
+        fn();
+      }
+
+      effect(() => {
+        console.log("effect fn");
+        // 一个匿名函数的副作用函数
+        id1.innerText = obj.text;
+      });
+
+      effect(() => {
+        console.log("effect fn");
+        // 一个匿名函数的副作用函数
+        id2.innerText = obj.text;
+      });
+    </script>
+  </body>
+</html>
