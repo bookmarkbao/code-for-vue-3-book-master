@@ -1,0 +1,67 @@
+<!--
+ * @Descripttion: 解决编码，副作用函数支持匿名函数
+ * @Author: xiangjun02
+ * @Date: 2022-03-09 19:21:17
+ * @LastEditors: xiangjun02
+ * @LastEditTime: 2022-03-09 19:41:48
+-->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>响应式系统-TODO</title>
+  </head>
+  <body>
+    <script type="text/javascript">
+      // 存储副作用函数的桶
+      const bucket = new Set();
+      // 存储原始数据
+      const data = {
+        text: "hello world",
+      };
+
+      // 对原始数据的代理
+      const obj = new Proxy(data, {
+        // 拦截读取操作
+        get(target, key) {
+          //将副作用函数effect添加到存储副作用函数的桶中
+          if (activeEffect) {
+            bucket.add(activeEffect);
+          }
+          // 返回属性值
+          return target[key];
+        },
+        set(target, key, newVal) {
+          // 设置属性值
+          target[key] = newVal;
+
+          // 把副作用函数从桶中取出来并执行
+          bucket.forEach((fn) => fn());
+          return true;
+        },
+      });
+
+      // 用一个全局变量存储被注册的副作用函数
+      let activeEffect;
+
+      // 副作用函数用户注册函数
+      function effect(fn) {
+        activeEffect = fn;
+        fn();
+      }
+
+      effect(() => {
+        console.log("effect fn");
+        // 一个匿名函数的副作用函数
+        document.body.innerText = obj.text;
+      });
+
+      setTimeout(() =>{
+        //   副作用函数中并没有读取noExit属性的值
+          obj.noExit = 'hello vue'
+      },3000)
+    </script>
+  </body>
+</html>
