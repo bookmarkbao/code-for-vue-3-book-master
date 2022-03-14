@@ -4,7 +4,7 @@
  * @Author: xiangjun02
  * @Date: 2022-03-09 19:21:17
  * @LastEditors: xiangjun02
- * @LastEditTime: 2022-03-14 21:14:40
+ * @LastEditTime: 2022-03-14 21:17:54
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -139,17 +139,19 @@
         // 把依赖集合判断并执行
         // effects && effects.forEach((fn) => fn());
 
-        const effectsToRun = new Set(effects);
+        const effectsToRun = new Set();
+        effects.forEach((effectFn) =>{
+           // trace收集的副作用函数和triger执行的副作用函数，是同一个。
+          if (activeEffect !== effectFn) {// 增加守卫条件
+            effectsToRun.add(effectFn);
+          }
+        })
         effectsToRun.forEach((effectFn) => {
-          // trace收集的副作用函数和triger执行的副作用函数，是同一个。
-          if (activeEffect !== effectFn) {
-            // 增加守卫条件
             if (effectFn.options["scheduler"]) {
               effectFn.options["scheduler"](effectFn);
             } else {
               effectFn();
             }
-          }
         });
         return true;
       }
