@@ -4,7 +4,7 @@
  * @Author: xiangjun02
  * @Date: 2022-03-09 19:21:17
  * @LastEditors: xiangjun02
- * @LastEditTime: 2022-03-14 20:47:42
+ * @LastEditTime: 2022-03-10 21:26:02
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -30,9 +30,7 @@
         ok: true,
         text: "hello world",
         title: "大向",
-        desc: "desc >>> ",
-        foo: "foo",
-        bar: "bar",
+        desc: "desc >>> "
       };
 
       // 对原始数据的代理
@@ -49,7 +47,7 @@
           target[key] = newVal;
 
           // 触发副作用函数并重新执行
-          trigger(target, key);
+          trigger(target, key)
         },
       });
 
@@ -61,39 +59,31 @@
           // 调用之前，执行清理工作
           clearup(effectFn);
           // 当effectFn执行时，将其设置为当前激活的副作用函数
-          activeEffect = effectFn;
-
-          // 在调用副作用函数之前，将当前副作用函数压栈
-          effectStack.push(effectFn);
-          fn();
-          // 执行副作用函数完毕后，把当前副作用函数弹出栈，并还原activeEffect为之前的值
-          effectStack.pop()
-          activeEffect = effectStack[effectStack.length - 1];
-          console.log('activeEffect >> ', activeEffect) // 读取其值的副作用函数
-          
-        };
+          activeEffect = effectFn
+          fn()
+        }
         // 用来存储所有与该副作用函数相关的依赖集合【new Set】
-        effectFn.deps = [];
+        effectFn.deps = []
         // 执行副作用函数
-        effectFn();
+        effectFn()
       }
 
       // 清理函数
-      function clearup(effectFn) {
+      function clearup(effectFn){
         // 把当前的副作用函数，从所有依赖集合中清楚
-        for (let i = 0; i < effectFn.deps.length; i++) {
+        for(let i = 0; i < effectFn.deps.length; i++){
           // 依赖集合的引用
-          const deps = effectFn.deps[i];
+          const deps = effectFn.deps[i]
           // 删除副作用函数,set集合
-          deps.delete(effectFn);
+          deps.delete(effectFn)
         }
         // 最后重置数组长度
-        effectFn.deps.length = 0;
+        effectFn.deps.length = 0
       }
 
       // 收集副作用函数的逻辑封装trace
       function trace(target, key) {
-        console.log("trace  >>> ", key);
+        console.log('trace  >>> ', key)
         // 没有activeEffect，直接return
         if (!activeEffect) return;
         // 根据target 从桶中取得depsMap（对象）, 它也是一个map类型：key --> effects
@@ -121,42 +111,37 @@
         deps.add(activeEffect);
 
         // deps就是一个与当前副作用函数存在联系的依赖集合
-        activeEffect.deps.push(deps); // 新增
+        activeEffect.deps.push(deps) // 新增
       }
 
       // 触发副作用函数的逻辑封装trigger
-      function trigger(target, key) {
-        console.log("trigger  >>>", key);
-        // 根据target从🪣桶中取得depsMap,他是key ---> effects
-        const depsMap = bucket.get(target);
-        if (!depsMap) return;
+      function trigger(target, key){
+          console.log('trigger  >>>', key)
+          // 根据target从🪣桶中取得depsMap,他是key ---> effects
+          const depsMap = bucket.get(target);
+          if (!depsMap) return;
 
-        // 获取key依赖集合
-        const effects = depsMap.get(key);
-        // 把依赖集合判断并执行
-        // effects && effects.forEach((fn) => fn());
-
-        const effectsToRun = new Set(effects);
-        effectsToRun.forEach((effectFn) => effectFn());
-        return true;
+          // 获取key依赖集合
+          const effects = depsMap.get(key);
+          // 把依赖集合判断并执行
+          // effects && effects.forEach((fn) => fn());
+          
+          const effectsToRun = new Set(effects);
+          effectsToRun.forEach(effectFn=> effectFn())
+          return true;
       }
 
-      // effect 栈
-      const effectStack = []
-
-      // =================================
-      let temp1, temp2;
-      effect(function effectFn1() {
-        console.log("effectFn1 执行");
-        effect(function effectFn2() {
-          console.log("effectFn2 执行");
-          id2.innerText = obj.bar;
-        });
-        id1.innerText = obj.foo;
+      effect(() => {
+        console.log("effect fn1");
+        // 一个匿名函数的副作用函数
+        id1.innerText = obj.ok ?  obj.text : "not";
       });
-      setTimeout(() => {
-        obj.foo = "999";
-      }, 1000);
+      effect(() => {
+        console.log("effect fn2");
+        // 一个匿名函数的副作用函数
+        id2.innerText = obj.title
+      });
+     
     </script>
   </body>
 </html>
