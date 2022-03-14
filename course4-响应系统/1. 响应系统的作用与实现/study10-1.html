@@ -1,0 +1,201 @@
+<!--
+ * @Descripttion: 调度执行，实现过度状态
+ *                promise 微任务队列来完成状态过渡
+ * @Author: xiangjun02
+ * @Date: 2022-03-09 19:21:17
+ * @LastEditors: xiangjun02
+ * @LastEditTime: 2022-03-14 21:43:43
+-->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>响应式系统-TODO</title>
+  </head>
+  <body>
+    <div id="id1"></div>
+    <div id="id2"></div>
+    <script type="text/javascript">
+      // 关系总结：
+      // 不同effectFn 读取 同一个target和同一个属性
+      // 不同属性 被 同一个target和同一个effectFn读取
+      // 不同effectFn 读取不同target 和 不同的text
+
+      // 存储副作用函数的桶
+      const bucket = new WeakMap();
+      // 存储原始数据
+      const data = {
+        ok: true,
+        text: "hello world",
+        title: "大向",
+        desc: "desc >>> ",
+        foo: 0,
+        bar: "bar",
+      };
+
+      // 对原始数据的代理
+      const obj = new Proxy(data, {
+        // 拦截读取操作
+        get(target, key) {
+          // 收集依赖集合
+          trace(target, key);
+          // 返回属性值
+          return target[key];
+        },
+        set(target, key, newVal) {
+          // 设置属性值
+          target[key] = newVal;
+
+          // 触发副作用函数并重新执行
+          trigger(target, key);
+        },
+      });
+
+      // effect 栈
+      const effectStack = [];
+      // 用一个全局变量存储被注册的副作用函数
+      let activeEffect;
+      // 副作用函数用户注册函数
+      function effect(fn, options = {}) {
+        const effectFn = () => {
+          // 调用之前，执行清理工作
+          clearup(effectFn);
+          // 当effectFn执行时，将其设置为当前激活的副作用函数
+          activeEffect = effectFn;
+
+          // 在调用副作用函数之前，将当前副作用函数压栈
+          effectStack.push(effectFn);
+          fn();
+          // 执行副作用函数完毕后，把当前副作用函数弹出栈，并还原activeEffect为之前的值
+          effectStack.pop();
+          activeEffect = effectStack[effectStack.length - 1];
+          console.log("activeEffect >> ", activeEffect); // 读取其值的副作用函数
+        };
+        // 将options保存起来
+        effectFn.options = options;
+        // 用来存储所有与该副作用函数相关的依赖集合【new Set】
+        effectFn.deps = [];
+        // 执行副作用函数
+        effectFn();
+      }
+
+      // 清理函数
+      function clearup(effectFn) {
+        // 把当前的副作用函数，从所有依赖集合中清楚
+        for (let i = 0; i < effectFn.deps.length; i++) {
+          // 依赖集合的引用
+          const deps = effectFn.deps[i];
+          // 删除副作用函数,set集合
+          deps.delete(effectFn);
+        }
+        // 最后重置数组长度
+        effectFn.deps.length = 0;
+      }
+
+      // 收集副作用函数的逻辑封装trace
+      function trace(target, key) {
+        console.log("trace  >>> ", key);
+        // 没有activeEffect，直接return
+        if (!activeEffect) return;
+        // 根据target 从桶中取得depsMap（对象）, 它也是一个map类型：key --> effects
+        let depsMap = bucket.get(target);
+
+        // 如果不存在depsMap,那么新建一个Map并与target关联
+        if (!depsMap) {
+          bucket.set(target, (depsMap = new Map()));
+
+          // 等价于
+          // depsMap = new Map()
+          // bucket.set(target, depsMap)
+        }
+
+        // 再根据key从depsMap中读取deps（属性值），它是一个set类型
+        // 里面存储着所有与当前key相关联的副作用函数：effects
+        let deps = depsMap.get(key);
+
+        // 如果deps不存在，同样新建一个Set并与key关联
+        if (!deps) {
+          depsMap.set(key, (deps = new Set()));
+        }
+
+        // 最后将当前激活的副作用函数，添加到桶里
+        deps.add(activeEffect);
+
+        // deps就是一个与当前副作用函数存在联系的依赖集合
+        activeEffect.deps.push(deps); // 新增
+      }
+
+      // 触发副作用函数的逻辑封装trigger
+      function trigger(target, key) {
+        console.log("trigger  >>>", key);
+        // 根据target从🪣桶中取得depsMap,他是key ---> effects
+        const depsMap = bucket.get(target);
+        if (!depsMap) return;
+
+        // 获取key依赖集合
+        const effects = depsMap.get(key);
+        // 把依赖集合判断并执行
+        // effects && effects.forEach((fn) => fn());
+
+        const effectsToRun = new Set();
+        effects.forEach((effectFn) =>{
+           // trace收集的副作用函数和triger执行的副作用函数，是同一个。
+          if (activeEffect !== effectFn) {// 增加守卫条件
+            effectsToRun.add(effectFn);
+          }
+        })
+        effectsToRun.forEach((effectFn) => {
+            if (effectFn.options["scheduler"]) {
+              effectFn.options["scheduler"](effectFn);
+            } else {
+              effectFn();
+            }
+        });
+        return true;
+      }
+
+      // =================================
+      // promise 微任务队列来完成
+      // 定义一个微任务对象
+      let jobQueue = new Set()
+      // 使用Promise.resolve() 创建一个promise实例
+      const p = Promise.resolve()
+
+      // 一个标志代表是否正在刷新队列
+      let isFlushing = false
+      function flushJob(){
+        // 如果正在刷新，则什么都不做
+        if(isFlushing) return
+        // 设置为true，代表正在刷新
+        isFlushing = true
+        // 在微任务队列中刷新jobQueue队列. 需要等待本次宏任务完成，才会执行then函数
+        p.then(()=>{
+          jobQueue.forEach(job => job())
+        }).finally(()=>{
+          isFlushing = false
+        })
+      }
+      effect(
+        () => {
+          console.log("effect 执行", obj.foo);
+        },
+        {
+          // 调度器scheduler 是一个函数
+          scheduler(fn) {
+            console.log("effect >> scheduler");
+            // fn();
+            jobQueue.add(fn)
+            flushJob()
+          },
+        }
+      );
+      obj.foo++
+      obj.foo++
+      obj.foo++
+      obj.foo++
+      obj.foo++
+    </script>
+  </body>
+</html>
